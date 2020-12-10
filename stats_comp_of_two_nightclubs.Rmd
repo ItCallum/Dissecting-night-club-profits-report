@@ -1,0 +1,125 @@
+---
+title: "Stats"
+author: "Callum Simpson"
+date: "26/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+library("tidyverse")
+library("ggplot2")
+library("reshape2")
+
+options(scipen=999)
+
+
+##CallumData is a set of data that was given to me. Due to reasons I cannot upload the data 
+
+sampleData <- gather(CallumData, factor_key=TRUE)
+
+sampleData <- sampleData %>% group_by(key)%>%
+  summarise(mean= mean(value), sd= sd(value), max = max(value),min = min(value), range = max(value) - min(value)  , IQR = IQR(value) , length = length(value))
+
+
+```
+
+
+```{r cars}
+
+sampleData
+
+
+##Create a box + violin plot of distribution of the profits of the two night clubs
+ggplot(data = melt(CallumData), aes(x = variable, y = value,color=variable)) +  geom_violin(width = 0.5) + geom_boxplot(width = 0.1) +  ggtitle("Vilion plot of Parcha and Green Valley profits") +   ylab("Profit") +  scale_color_discrete(name = "Night Club") 
+
+
+ggplot(data = melt(CallumData), aes(x=value, color=variable)) + 
+  geom_density()
+```
+
+
+Calculating a Confidence Interval From a t Distribution
+
+
+```{r Range_Pop_Mean, echo=FALSE}
+
+##code the calculate a range of plausible means for the population
+
+##Take work out the approtaite error value and then add it and subtract from the sample mean 
+
+##90 confidence 
+sampleData %>% mutate(confidence = 90, error = qt(0.95,df=length-1) * sd/sqrt(length), lower = mean - error , upper = mean + error) %>% select(key,confidence, lower,upper)
+
+
+
+##95 confidence 
+sampleData %>% mutate(confidence = 95,error = qt(0.975,df=length-1) * sd/sqrt(length), lower = mean - error , upper = mean + error) %>% select(key,confidence,lower,upper)
+
+
+```
+
+
+```{r Range_Pop_Mean, echo=FALSE}
+
+##Calc the probability that the one of the clubs makes more profit than the other of the two clubs are chosen at random
+
+proabilty <- function(colA , colB){
+
+  mylist <- vector("list", length(length(colA) * length(colB)))
+  
+  q = 1
+  
+  for(i in 1:length(colA)){
+
+    for( j in 1:length(colB)){
+      
+        mylist[q] = (colA[i] > colB[j])
+      
+        q <- q + 1
+      
+    }
+    
+}
+    
+  return(length(mylist[mylist == TRUE]) / length(mylist))
+  
+}
+
+proabilty( CallumData$Green_Valley , CallumData$Pacha)
+
+
+
+```
+
+```{r central_limit_theory, echo=FALSE}
+options(scipen=999)
+
+
+sampleData
+
+## Financial analysts expect each club to make an average nightly profit of $100,000 on 10% of nights
+
+##Two tailed probability Null	μ = 100	 Alternative μ ≠ 100 Number of tails	2
+sampleData %>% mutate(t = ( mean - 100) / (sqrt((sd*sd) / 30)), p = 1 -  pt(t, 29)) %>% select(key,mean,sd,t,p)
+
+
+sampleDatatest <- gather(CallumData, factor_key=TRUE)
+ sampleDatatest <- sampleDatatest %>%  group_by(key)  %>% 
+  summarise(mean= mean(value), sd= sd(value), max = max(value),min = min(value), range = max(value) - min(value)  , IQR = IQR(value) , length = length(value), greaterThan = length(which(value > 105)) , gt105 = greaterThan/length  )
+
+## Financial analysts expect each club to make an average nightly profit of $105,000 on 10% of nights
+ ##Two tailed probability Null	μ = 105	 Alternative μ ≠ 105 Number of tails	2
+
+sampleDatatest %>% mutate(p = 1-  pbinom( if_else(greaterThan - 1 < 0, 0 , greaterThan - 1 ) , length, 0.1)) %>% select(key,length,greaterThan,p)
+
+
+##Back up checks for claraifcation
+
+##1 - pbinom(0 ,30, 0.1)
+##1 - pbinom(6,30,0.1)
+##prop.test(3, 30, p=.10, alt="two.sided",conf.level = 0.95,correct=FALSE) 
+##prop.test(7, 30, p=.10, alt="two.sided",conf.level = 0.95,correct=FALSE) 
+
+```
+
